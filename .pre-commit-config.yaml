@@ -1,0 +1,22 @@
+repos:
+  - repo: https://github.com/pycqa/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+
+  - repo: https://github.com/psf/black
+    rev: 24.4.0
+    hooks:
+      - id: black
+
+  - repo: https://github.com/pycqa/flake8
+    rev: "7.0.0"
+    hooks:
+      - id: flake8
+
+  - repo: https://github.com/RobertCraigie/pyright-python
+    rev: v1.1.348
+    hooks:
+    - id: pyright
+      entry: .venv/bin/python -m pyright --pythonpath .venv/bin/python --project .
+      language: system
