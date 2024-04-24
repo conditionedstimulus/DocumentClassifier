@@ -63,6 +63,7 @@ class LiltClassifier:
             bboxes.append(self.normalize_box(box, width, height))
 
         word_list = ocr_df['text'].to_list()
+        word_list = [str(w) for w in word_list]
 
         if len(word_list) != len(bboxes):
             raise HTTPException(status_code=400, detail="Number of words and the number of bounding boxes are not matching.")

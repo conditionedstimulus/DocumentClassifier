@@ -13,8 +13,8 @@ async def get_model_details() -> dict:
         "model_name": settings.MODEL_NAME}
 
 
-@router.post("/classify/")
-async def classify_text(
+@router.post("/classify_file/")
+async def classify_file(
         request: Request,
         pdf_file: UploadFile):
 
