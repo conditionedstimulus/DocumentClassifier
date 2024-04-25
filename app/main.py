@@ -5,7 +5,7 @@ from fastapi import FastAPI
 
 from app.api.classifiers import document_classifier
 from app.core.config import settings
-from app.services.models.LiltClassifier import LiltClassifier
+from app.services.models.LayoutLMv3Classifier import LayoutLMv3Classifier
 from app.utils.globals import GlobalsMiddleware, g
 
 logger = logging.getLogger(__name__)
@@ -14,10 +14,10 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Load the ML model
-    lilt_model = LiltClassifier(
+    classifier_model = LayoutLMv3Classifier(
         model_name=settings.MODEL_NAME, tokenizer_name=settings.TOKENIZER_NAME
     )
-    g.set_default("lilt_classifier", lilt_model)
+    g.set_default("lmv3_classifier", classifier_model)
     print("startup fastapi")
     yield
     # shutdown

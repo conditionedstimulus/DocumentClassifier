@@ -16,7 +16,7 @@ async def get_model_details() -> dict:
 @router.post("/classify_file/")
 async def classify_file(request: Request, pdf_file: UploadFile):
 
-    document_classifier = g.lilt_classifier
+    document_classifier = g.lmv3_classifier
     result = await document_classifier.predict_from_uploadfile(file=pdf_file)
 
     return result

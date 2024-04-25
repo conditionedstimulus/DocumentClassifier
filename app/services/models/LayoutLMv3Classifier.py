@@ -12,7 +12,7 @@ from transformers import (
 )
 
 
-class LiltClassifier:
+class LayoutLMv3Classifier:
     def __init__(self, model_name: str, tokenizer_name: str):
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
