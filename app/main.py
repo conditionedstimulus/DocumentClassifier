@@ -1,4 +1,4 @@
-import logging
+from app.utils.logger import logger
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -7,8 +7,6 @@ from app.api.classifiers import document_classifier
 from app.core.config import settings
 from app.services.models.LayoutLMv3Classifier import LayoutLMv3Classifier
 from app.utils.globals import GlobalsMiddleware, g
-
-logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -29,6 +27,8 @@ def init_app():
     This is a demo Fast API application for Document Classification with LiLT.
     The model was trained on a sample of RVL-CDIP dataset.
     """
+
+    logger.info("Starting FAST API application...")
 
     app = FastAPI(title=settings.PROJECT_NAME, description=desc, lifespan=lifespan)
 

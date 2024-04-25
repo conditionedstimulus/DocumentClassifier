@@ -11,7 +11,7 @@ from transformers import (
     AutoTokenizer,
     BatchEncoding,
 )
-
+from app.utils.logger import logger
 from app.schemas.DocumentClassifierResult import DocumentClassifierResult
 from app.schemas.DocumentType import DocumentType
 
@@ -27,11 +27,18 @@ class LayoutLMv3Classifier:
     async def predict_from_uploadfile(
         self, file: UploadFile
     ) -> DocumentClassifierResult:
-        word_list, bboxes = await self.preprocessing(file)
-        encoded = self.tokenization(words=word_list, boxes=bboxes)
-        predicted_class, probs = self.predict(encoded)
-        document_classifier_result = self.postprocessing(predicted_class, probs)
-        return document_classifier_result
+        try:
+            word_list, bboxes = await self.preprocessing(file)
+            encoded = self.tokenization(words=word_list, boxes=bboxes)
+            predicted_class, probs = self.predict(encoded)
+            document_classifier_result = self.postprocessing(predicted_class, probs)
+            return document_classifier_result
+        except PDFPageCountError as e:
+            logger.error(e)
+            raise HTTPException(status_code=400, detail=f"An error occurred: {e}")
+        except Exception as e:
+            logger.error(e)
+            raise HTTPException(status_code=422, detail=f"An error occurred: {e}")
 
     # Prediction steps
     def tokenization(self, words: list[str], boxes: list) -> BatchEncoding:
@@ -72,70 +79,60 @@ class LayoutLMv3Classifier:
     @staticmethod
     async def convert_pdf_to_image(file: UploadFile) -> Image.Image:
         if file.content_type != "application/pdf":
+            logger.error("Uploaded file must be a PDF.")
             raise HTTPException(status_code=422, detail="Uploaded file must be a PDF.")
 
-        try:
-            contents = await file.read()
-            images = convert_from_bytes(contents)
-            if not images:
-                raise PDFPageCountError("No images found in PDF file.")
-            image = images[0].convert("RGB")
-            return image
-        except PDFPageCountError:
-            raise HTTPException(
-                status_code=400, detail="The PDF file does not contain any pages."
-            )
-        except Exception as e:
-            raise HTTPException(
-                status_code=422, detail=f"An error occurred during PDF conversion: {e}"
-            )
+        contents = await file.read()
+        images = convert_from_bytes(contents)
+        if not images:
+            logger.error("PDFPageCountError: No images found in PDF file.")
+            raise PDFPageCountError("No images found in PDF file.")
+        image = images[0].convert("RGB")
+        return image
 
     def pytessaract_ocr_process(
         self, input_image: Image.Image
     ) -> tuple[list[str], list]:
-        try:
-            width, height = input_image.size
+        width, height = input_image.size
 
-            ocr_df = pytesseract.image_to_data(input_image, output_type="data.frame")
-            ocr_df = ocr_df.dropna().reset_index(drop=True)
-            float_cols = ocr_df.select_dtypes("float").columns
-            ocr_df[float_cols] = ocr_df[float_cols].round(0).astype(int)
-            ocr_df = ocr_df.replace(r"^\s*$", np.nan, regex=True)
+        ocr_df = pytesseract.image_to_data(input_image, output_type="data.frame")
+        ocr_df = ocr_df.dropna().reset_index(drop=True)
+        float_cols = ocr_df.select_dtypes("float").columns
+        ocr_df[float_cols] = ocr_df[float_cols].round(0).astype(int)
+        ocr_df = ocr_df.replace(r"^\s*$", np.nan, regex=True)
 
-            coordinates = ocr_df[["left", "top", "width", "height"]]
-            actual_boxes = []
-            for _, row in coordinates.iterrows():
-                x, y, w, h = tuple(
-                    row
-                )  # the row comes in (left, top, width, height) format
-                actual_box = [
-                    x,
-                    y,
-                    x + w,
-                    y + h,
-                ]  # we turn it into (left, top, left+width, top+height) to get the actual box
-                actual_boxes.append(actual_box)
+        coordinates = ocr_df[["left", "top", "width", "height"]]
+        actual_boxes = []
+        for _, row in coordinates.iterrows():
+            x, y, w, h = tuple(
+                row
+            )  # the row comes in (left, top, width, height) format
+            actual_box = [
+                x,
+                y,
+                x + w,
+                y + h,
+            ]  # we turn it into (left, top, left+width, top+height) to get the actual box
+            actual_boxes.append(actual_box)
 
-            # normalize the bounding boxes
-            bboxes = []
-            for box in actual_boxes:
-                bboxes.append(self.normalize_box(box, width, height))
+        # normalize the bounding boxes
+        bboxes = []
+        for box in actual_boxes:
+            bboxes.append(self.normalize_box(box, width, height))
 
-            word_list = ocr_df["text"].to_list()
-            word_list = [str(w) for w in word_list]
+        word_list = ocr_df["text"].to_list()
+        word_list = [str(w) for w in word_list]
 
-            if len(word_list) != len(bboxes):
-                raise HTTPException(
-                    status_code=422,
-                    detail="Number of words and the number of bounding boxes are not matching.",
-                )
-
-            return word_list, bboxes
-
-        except Exception as e:
-            raise HTTPException(
-                status_code=422, detail=f"An error occurred during the OCR process: {e}"
+        if len(word_list) != len(bboxes):
+            logger.error(
+                "Number of words and the number of bounding boxes are not matching."
             )
+            raise HTTPException(
+                status_code=422,
+                detail="Number of words and the number of bounding boxes are not matching.",
+            )
+
+        return word_list, bboxes
 
     @staticmethod
     def normalize_box(box: list, width: int, height: int) -> list[int]:
@@ -147,12 +144,6 @@ class LayoutLMv3Classifier:
         ]
 
     async def preprocessing(self, file: UploadFile) -> tuple[list[str], list]:
-        try:
-            converted_image = await self.convert_pdf_to_image(file)
-            word_list, bboxes = self.pytessaract_ocr_process(converted_image)
-            return word_list, bboxes
-        except Exception as e:
-            # Handle preprocessing errors
-            raise HTTPException(
-                status_code=422, detail=f"An error occurred during preprocessing: {e}"
-            )
+        converted_image = await self.convert_pdf_to_image(file)
+        word_list, bboxes = self.pytessaract_ocr_process(converted_image)
+        return word_list, bboxes
