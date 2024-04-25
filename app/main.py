@@ -1,12 +1,12 @@
-from fastapi import FastAPI
 import logging
 from contextlib import asynccontextmanager
-from app.core.config import settings
-from app.utils.globals import GlobalsMiddleware, g
-from app.services.models.LiltClassifier import (
-    LiltClassifier,
-)
+
+from fastapi import FastAPI
+
 from app.api.classifiers import document_classifier
+from app.core.config import settings
+from app.services.models.LiltClassifier import LiltClassifier
+from app.utils.globals import GlobalsMiddleware, g
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +14,9 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Load the ML model
-    lilt_model = LiltClassifier(model_path=settings.MODEL_PATH)
+    lilt_model = LiltClassifier(
+        model_name=settings.MODEL_NAME, tokenizer_name=settings.TOKENIZER_NAME
+    )
     g.set_default("lilt_classifier", lilt_model)
     print("startup fastapi")
     yield
@@ -34,9 +36,9 @@ def init_app():
 
     app.include_router(document_classifier.router)
 
-    @app.get('/')
+    @app.get("/")
     async def index():
-        return {'message': 'ML Document Classifier API'}
+        return {"message": "ML Document Classifier API"}
 
     return app
 

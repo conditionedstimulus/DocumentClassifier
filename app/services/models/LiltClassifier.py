@@ -1,19 +1,22 @@
+import numpy as np
+import pytesseract
+import torch
+from fastapi import HTTPException, UploadFile
 from pdf2image import convert_from_bytes
 from pdf2image.exceptions import PDFPageCountError
 from PIL import Image
-import torch
-import numpy as np
-from transformers import AutoTokenizer, AutoModelForSequenceClassification, BatchEncoding
-import pytesseract
-from fastapi import UploadFile, HTTPException
+from transformers import (
+    AutoModelForSequenceClassification,
+    AutoTokenizer,
+    BatchEncoding,
+)
 
 
 class LiltClassifier:
-
-    def __init__(self, model_path: str, tokenizer_path: str):
+    def __init__(self, model_name: str, tokenizer_name: str):
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
-        self.model = AutoModelForSequenceClassification.from_pretrained(model_path)
+        self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
+        self.model = AutoModelForSequenceClassification.from_pretrained(model_name)
         self.id2label = self.model.config.id2label
         self.model.to(device)
 
@@ -38,7 +41,7 @@ class LiltClassifier:
 
     # Preprocessing steps
     @staticmethod
-    async def convert_pdf_to_image(file: UploadFile) -> Image:
+    async def convert_pdf_to_image(file: UploadFile) -> Image.Image:
         if file.content_type != "application/pdf":
             raise HTTPException(status_code=400, detail="Uploaded file must be a PDF.")
 
@@ -50,25 +53,38 @@ class LiltClassifier:
             image = images[0].convert("RGB")
             return image
         except PDFPageCountError:
-            raise HTTPException(status_code=400, detail="The PDF file does not contain any pages.")
+            raise HTTPException(
+                status_code=400, detail="The PDF file does not contain any pages."
+            )
         except Exception as e:
-            raise HTTPException(status_code=422, detail=f"An error occurred during PDF conversion: {e}")
+            raise HTTPException(
+                status_code=422, detail=f"An error occurred during PDF conversion: {e}"
+            )
 
-    def pytessaract_ocr_process(self, input_image: Image) -> tuple[list[str], list]:
+    def pytessaract_ocr_process(
+        self, input_image: Image.Image
+    ) -> tuple[list[str], list]:
         try:
             width, height = input_image.size
 
-            ocr_df = pytesseract.image_to_data(input_image, output_type='data.frame')
+            ocr_df = pytesseract.image_to_data(input_image, output_type="data.frame")
             ocr_df = ocr_df.dropna().reset_index(drop=True)
-            float_cols = ocr_df.select_dtypes('float').columns
+            float_cols = ocr_df.select_dtypes("float").columns
             ocr_df[float_cols] = ocr_df[float_cols].round(0).astype(int)
-            ocr_df = ocr_df.replace(r'^\s*$', np.nan, regex=True)
+            ocr_df = ocr_df.replace(r"^\s*$", np.nan, regex=True)
 
-            coordinates = ocr_df[['left', 'top', 'width', 'height']]
+            coordinates = ocr_df[["left", "top", "width", "height"]]
             actual_boxes = []
             for _, row in coordinates.iterrows():
-                x, y, w, h = tuple(row)  # the row comes in (left, top, width, height) format
-                actual_box = [x, y, x + w, y + h]  # we turn it into (left, top, left+width, top+height) to get the actual box
+                x, y, w, h = tuple(
+                    row
+                )  # the row comes in (left, top, width, height) format
+                actual_box = [
+                    x,
+                    y,
+                    x + w,
+                    y + h,
+                ]  # we turn it into (left, top, left+width, top+height) to get the actual box
                 actual_boxes.append(actual_box)
 
             # normalize the bounding boxes
@@ -76,19 +92,24 @@ class LiltClassifier:
             for box in actual_boxes:
                 bboxes.append(self.normalize_box(box, width, height))
 
-            word_list = ocr_df['text'].to_list()
+            word_list = ocr_df["text"].to_list()
             word_list = [str(w) for w in word_list]
 
             if len(word_list) != len(bboxes):
-                raise HTTPException(status_code=422, detail="Number of words and the number of bounding boxes are not matching.")
+                raise HTTPException(
+                    status_code=422,
+                    detail="Number of words and the number of bounding boxes are not matching.",
+                )
 
             return word_list, bboxes
 
         except Exception as e:
-            raise HTTPException(status_code=422, detail=f"An error occurred during the OCR process: {e}")
+            raise HTTPException(
+                status_code=422, detail=f"An error occurred during the OCR process: {e}"
+            )
 
     @staticmethod
-    def normalize_box(box: list, width: int, height: int) -> tuple[int, int, int, int]:
+    def normalize_box(box: list, width: int, height: int) -> list[int]:
         return [
             int(1000 * (box[0] / width)),
             int(1000 * (box[1] / height)),
@@ -103,4 +124,6 @@ class LiltClassifier:
             return word_list, bboxes
         except Exception as e:
             # Handle preprocessing errors
-            raise HTTPException(status_code=422, detail=f"An error occurred during preprocessing: {e}")
+            raise HTTPException(
+                status_code=422, detail=f"An error occurred during preprocessing: {e}"
+            )

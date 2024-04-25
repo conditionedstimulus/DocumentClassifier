@@ -39,6 +39,7 @@ inside dependencies or similar. Otherwise you may run into the issue that
 the value was already used any thus have a value of `None` set already, which
 would result in the default value not being used.
 """
+
 from collections.abc import Awaitable, Callable
 from contextvars import ContextVar, copy_context
 from typing import Any
@@ -55,17 +56,14 @@ class Globals:
     _defaults: dict[str, Any]
 
     def __init__(self) -> None:
-        object.__setattr__(self, '_vars', {})
-        object.__setattr__(self, '_defaults', {})
+        object.__setattr__(self, "_vars", {})
+        object.__setattr__(self, "_defaults", {})
 
     def set_default(self, name: str, default: Any) -> None:
         """Set a default value for a variable."""
 
         # Ignore if default is already set and is the same value
-        if (
-            name in self._defaults
-            and default is self._defaults[name]
-        ):
+        if name in self._defaults and default is self._defaults[name]:
             return
 
         # Ensure we don't have a value set already - the default will have
