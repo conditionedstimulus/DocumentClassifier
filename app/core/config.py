@@ -5,8 +5,8 @@ import os
 class Settings(BaseSettings):
     PROJECT_NAME: str = os.environ['APP_NAME']
 
-    MODEL_PATH: str = os.environ['LiLT_PATH']
-    MODEL_NAME: str = os.environ['LiLT_NAME']
+    TOKENIZER_NAME: str = os.environ['TOKENIZER_NAME']
+    MODEL_NAME: str = os.environ['MODEL_NAME']
 
     class Config:
         case_sensitive = True
