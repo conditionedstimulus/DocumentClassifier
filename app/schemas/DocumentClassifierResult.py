@@ -6,5 +6,5 @@ from app.schemas.DocumentType import DocumentType
 
 
 class DocumentClassifierResult(BaseModel):
-    predicted_class: Union[str, None] = None
+    predicted_class: Union[DocumentType, None] = None
     probabilities: Union[dict[DocumentType, float], None] = None

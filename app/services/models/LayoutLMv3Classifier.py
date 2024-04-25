@@ -1,6 +1,7 @@
 import numpy as np
 import pytesseract
 import torch
+import torch.nn.functional as F
 from fastapi import HTTPException, UploadFile
 from pdf2image import convert_from_bytes
 from pdf2image.exceptions import PDFPageCountError
@@ -11,6 +12,9 @@ from transformers import (
     BatchEncoding,
 )
 
+from app.schemas.DocumentClassifierResult import DocumentClassifierResult
+from app.schemas.DocumentType import DocumentType
+
 
 class LayoutLMv3Classifier:
     def __init__(self, model_name: str, tokenizer_name: str):
@@ -20,30 +24,55 @@ class LayoutLMv3Classifier:
         self.id2label = self.model.config.id2label
         self.model.to(device)
 
-    async def predict_from_uploadfile(self, file: UploadFile) -> str:
+    async def predict_from_uploadfile(
+        self, file: UploadFile
+    ) -> DocumentClassifierResult:
         word_list, bboxes = await self.preprocessing(file)
         encoded = self.tokenization(words=word_list, boxes=bboxes)
-        predicted_class = self.predict(encoded)
-        return predicted_class
+        predicted_class, probs = self.predict(encoded)
+        document_classifier_result = self.postprocessing(predicted_class, probs)
+        return document_classifier_result
 
     # Prediction steps
     def tokenization(self, words: list[str], boxes: list) -> BatchEncoding:
         encoding = self.tokenizer(words, boxes=boxes, return_tensors="pt")
         return encoding
 
-    def predict(self, encoded: BatchEncoding) -> str:
+    def predict(self, encoded: BatchEncoding) -> tuple[str, np.ndarray]:
         outputs = self.model(**encoded)
-        predicted_class_idx = outputs.logits.argmax(-1).item()
+
+        logits = outputs.logits
+        probabilities = F.softmax(logits, dim=-1)
+
+        probabilities_np = probabilities.cpu().detach().numpy()[0]
+        predicted_class_idx = logits.argmax(-1).item()
 
         predicted_class = self.id2label[predicted_class_idx]
 
-        return predicted_class
+        return predicted_class, probabilities_np
+
+    def postprocessing(
+        self, predicted_class, probabilities
+    ) -> DocumentClassifierResult:
+        label_probabilities = {}
+
+        for idx, label in self.id2label.items():
+            enum_label = DocumentType[label]
+            label_probabilities[enum_label] = probabilities[idx]
+
+        converted_predicted_class = DocumentType[predicted_class]
+
+        results = DocumentClassifierResult(
+            predicted_class=converted_predicted_class, probabilities=label_probabilities
+        )
+
+        return results
 
     # Preprocessing steps
     @staticmethod
     async def convert_pdf_to_image(file: UploadFile) -> Image.Image:
         if file.content_type != "application/pdf":
-            raise HTTPException(status_code=400, detail="Uploaded file must be a PDF.")
+            raise HTTPException(status_code=422, detail="Uploaded file must be a PDF.")
 
         try:
             contents = await file.read()
