@@ -16,5 +16,4 @@ class DocumentType(Enum):
     LETTER = "Letter"
     QUESTIONNAIRE = "Questionnaire"
     FORM = "Form"
-
     NEWS_ARTICLE = "News Article"
