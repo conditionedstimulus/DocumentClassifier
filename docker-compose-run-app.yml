@@ -1,0 +1,18 @@
+services:
+  app:
+    image: davidhajdu1992/documentclassifier-app:v0.1
+    restart: always
+    ports:
+      - 80:80
+    environment:
+      VERSION: "v0.1"
+      #------------- fastapi configs ------------------
+      APP_MODULE: "app.main:app"
+      TIMEOUT: 120
+      GRACEFUL_TIMEOUT: 120
+      WORKERS_PER_CORE: 1
+      LOG_LEVEL: "info"
+      # ------------ app configs -------------------
+      APP_NAME: "ML Document Classifier FastAPI Demo"
+      MODEL_NAME: davidhajdu/fine-tuned-rvl-cdip
+      TOKENIZER_NAME: microsoft/layoutlmv3-base
