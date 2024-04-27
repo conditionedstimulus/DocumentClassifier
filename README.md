@@ -78,12 +78,13 @@ As the application itself the pipeline is also pretty simple and straightforward
 
 3. Fine-tuning the model
 
-    Since I used a big multimodal LLM model I needed GPU source to be able to fine-tune the model. I ran the notebook on Kaggle with GPU4x2 resources and it took a little bit more than an hour. The whole process is available in notebooks/2_train_LayoutLM_v3_on_kaggle.ipynb notebook, but I pushed the trained model to my [HuggingFace Hub](https://huggingface.co/davidhajdu/fine-tuned-rvl-cdip). Also the metrics of the training is available under my [W & B profile](https://wandb.ai/david_hajdu/huggingface/runs/0bqlwuvd?nw=nwuserhajdudavid).
+    Since I used a big multimodal LLM model I needed GPU source to be able to fine-tune the model. I ran the notebook on Kaggle with GPU4x2 resources and it took a little bit more than an hour. The whole process is available in notebooks/2_train_LayoutLM_v3_on_kaggle.ipynb notebook, but I pushed the trained model to my [HuggingFace Hub](https://huggingface.co/davidhajdu/fine-tuned-rvl-cdip). Also the metrics of the training is available under my [W & B profile](https://wandb.ai/david_hajdu/huggingface/runs/0bqlwuvd?nw=nwuserhajdudavid). In the paper of [LayoutLMv3](https://arxiv.org/abs/2204.08387) they mention of their approach of this task. Obviously when they fine-tuned the model they used the whole dataset 320K train, 40K evaluation and 40K test set. Their batch size was 64 while mine was only 16 since even 1 used kind of strong GPU but the memory capacity was limited to 16 GBs. Also they fine-tuned over 20K steps while I only trained the last layers over 960 steps.
 
 4. Evaluation of the model
 
     Since the dataset that I used is small and challenging I didn't have high expectation with the performance of the model. Nonetheless, the accuracy score is 86% that is kinda acceptable but definetly not production ready.
     ![POST response endpoint](media/class_rep.png)
+    
     As you can see in the notebooks/3_eval_model_performance.ipynb notebook I used the previously saved dataset to evalute the performance. Unfortunetly with real-world/modern examples I haven't experience the same acceptable performance, as you can see above in this documentation the USAGE/ENDPOINTS/POST part on the image example the response of the model predicted 'BUDGET' class while the uploaded file is an invoice.
 
 
