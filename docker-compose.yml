@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   app:
     build:
@@ -17,7 +15,7 @@ services:
       APP_NAME: "ML Document Classifier FastAPI Demo"
       # ------------ document classifier -------------------
       MODEL_NAME: davidhajdu/fine-tuned-rvl-cdip
-      TOKENIZER_NAME: davidhajdu/fine-tuned-rvl-cdip
+      TOKENIZER_NAME: microsoft/layoutlmv3-base
 
     volumes:
       - ./app:/code/app

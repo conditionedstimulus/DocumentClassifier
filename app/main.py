@@ -16,7 +16,6 @@ async def lifespan(app: FastAPI):
         model_name=settings.MODEL_NAME, tokenizer_name=settings.TOKENIZER_NAME
     )
     g.set_default("lmv3_classifier", classifier_model)
-    print("startup fastapi")
     yield
     # shutdown
     g.cleanup()
@@ -24,8 +23,8 @@ async def lifespan(app: FastAPI):
 
 def init_app():
     desc = """
-    This is a demo Fast API application for Document Classification with LiLT.
-    The model was trained on a sample of RVL-CDIP dataset.
+    This is a demo Fast API application for document classification with LayoutLMv3.
+    The model was trained on a subset of the RVL-CDIP dataset.
     """
 
     logger.info("Starting FAST API application...")

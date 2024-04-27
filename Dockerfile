@@ -1,18 +1,18 @@
-FROM tiangolo/uvicorn-gunicorn-fastapi
+FROM tiangolo/uvicorn-gunicorn:python3.11
 
-RUN apt clean
-RUN apt update
+# Update package lists and upgrade existing packages
+RUN apt-get update && apt-get upgrade -y
 
-RUN pip install --upgrade pip
+# Install dependencies for OCR and PDF processing
+RUN apt-get install -y tesseract-ocr poppler-utils poppler-data
 
-# poppler, tessaract, and fonts for pdf2image
-RUN apt-get install tesseract-ocr
-RUN apt-get install poppler-utils -y
-RUN apt-get install poppler-data -y
+# Copy and install Python dependencies
+RUN pip install torch --extra-index-url https://download.pytorch.org/whl/cpu
 
 COPY ./requirements.txt /code/requirements.txt
-RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
+RUN pip install -r /code/requirements.txt
 
+# Copy the application code into the container
 COPY ./app /code/app
 
 WORKDIR /code
